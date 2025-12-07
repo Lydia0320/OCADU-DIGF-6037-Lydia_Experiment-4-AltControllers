@@ -1,0 +1,77 @@
+Fairy Tale Parody: The Frog Prince_Lydia Li
+/*********************************************************************
+ * DF Pong Controller  (Potentiometer version)
+ * Trigger Conditions：<650 → UP；>750 → DOWN；in between → NONE
+ *********************************************************************/
+
+#include <ArduinoBLE.h>
+#include "ble_functions.h"
+#include "buzzer_functions.h"
+
+// ============================================
+const int DEVICE_NUMBER = 12;  // 
+// ============================================
+
+String deviceNameStr = "DFPONG-" + String(DEVICE_NUMBER);
+const char* deviceName = deviceNameStr.c_str();
+
+const int BUZZER_PIN = 11;
+const int LED_PIN = LED_BUILTIN;
+
+int currentMovement = 0;   // 0=none, 1=up, 2=down
+
+// ---- Potentiometer ----
+const int POT_PIN = A6;
+const unsigned int POT_READ_INTERVAL = 20;
+unsigned long lastPotReadTime = 0;
+
+// ★  <650 → UP；> 750 → DOWN
+const int UP_LOW_THRESHOLD     = 650;  // potRaw < 650 → UP
+const int DOWN_HIGH_THRESHOLD  = 750;  // potRaw > 750 → DOWN
+
+int potRaw = 0;
+
+void setup() {
+  Serial.begin(9600);
+  delay(500);
+  Serial.println("=== DF Pong Controller (Pot Input) ===");
+
+  pinMode(POT_PIN, INPUT);
+  pinMode(LED_PIN, OUTPUT);
+
+  setupBLE(deviceName, DEVICE_NUMBER, LED_PIN);
+  setupBuzzer(BUZZER_PIN);
+}
+
+void loop() {
+  updateBLE();
+  handleInput();
+  sendMovement(currentMovement);
+  updateBuzzer(currentMovement);
+}
+
+void handleInput() {
+  unsigned long now = millis();
+  if (now - lastPotReadTime >= POT_READ_INTERVAL) {
+    lastPotReadTime = now;
+    potRaw = analogRead(POT_PIN);  // 0~1023
+
+    // state evaluation：<650 → UP；>750 → DOWN；in between→ NONE
+    if (potRaw < UP_LOW_THRESHOLD) {
+      currentMovement = 1;   // UP
+    } else if (potRaw > DOWN_HIGH_THRESHOLD) {
+      currentMovement = 2;   // DOWN
+    } else {
+      currentMovement = 0;   // NONE
+    }
+
+    // Display only two items
+    Serial.print("Pot Value: ");
+    Serial.print(potRaw);
+    Serial.print(" | State: ");
+    if (currentMovement == 1) Serial.println("UP");
+    else if (currentMovement == 2) Serial.println("DOWN");
+    else Serial.println("NONE");
+  }
+}
+
